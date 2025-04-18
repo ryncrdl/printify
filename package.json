@@ -20,6 +20,7 @@
     },
     "dependencies": {
         "buefy": "npm:@ntohq/buefy-next@^0.2.0",
-        "bulma": "^1.0.3"
+        "bulma": "^1.0.3",
+        "vue-files-preview": "^1.0.38"
     }
 }

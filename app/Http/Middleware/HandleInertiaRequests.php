@@ -14,6 +14,10 @@ class HandleInertiaRequests extends Middleware
      */
     protected $rootView = 'app';
 
+    protected $except = [
+        '/transfer/receive',
+    ];
+
     /**
      * Determine the current asset version.
      */

@@ -7,6 +7,8 @@ import { createApp, h } from 'vue';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import Buefy from 'buefy'
 import 'buefy/dist/buefy.css'
+import VueFilesPreview from 'vue-files-preview'
+import 'vue-files-preview/lib/style.css'
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 createInertiaApp({
@@ -21,6 +23,7 @@ createInertiaApp({
             .use(plugin)
             .use(ZiggyVue)
             .use(Buefy)
+            .use(VueFilesPreview)
             .mount(el);
     },
     progress: {

@@ -15,22 +15,21 @@
                             src="/images/qr_code.png"
                             alt="The Buefy Logo"
                             ratio="1by1"
-                            :rounded="rounded"
                         ></b-image>
                     </div>
                 </div>
                 <div class="has-text-centered">
                     <p class="title is-size-3">BLUETOOTH</p>
-                    <p class="subtitle is-size-6">Share your file via Bluetooth and <br/> send it to the Bluetooth device listed below.</p>
+                    <p class="subtitle is-size-6">Share your file via Bluetooth</p>
 
                     <div>
                         <b-image
                             src="/images/bluetooth.png"
                             alt="The Buefy Logo"
                             ratio="1by1"
-                            :rounded="rounded"
                         ></b-image>
                         <p class="subtitle">Bluetooth Name: <b>printify</b></p>
+                        <b-button type="is-info" @click="sendViaBluetooth">Send files via Bluetooth</b-button>
                     </div>
                 </div>
             </div>
@@ -45,6 +44,28 @@
             return {
                 checkbox: false,
                 checkboxCustom: 'Yes'
+            }
+        },
+
+
+        methods: {
+            async sendViaBluetooth(){
+                try {
+                    const response = await axios.get('/receive_bluetooth');
+                    this.$buefy.notification.open({
+                        duration: 5000,
+                        message: `<span class="is-size-4">${response.data.message}</span>`,
+                        type: 'is-success',
+                    })
+                    
+                } catch (error) {
+                    const errorMessage = error.response.data.message || error.message
+                    this.$buefy.notification.open({
+                        duration: 5000,
+                        message: `<span class="is-size-4">${errorMessage}</span>`,
+                        type: 'is-warning',
+                    })
+                }
             }
         }
     }
