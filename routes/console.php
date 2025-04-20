@@ -10,10 +10,10 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::call(function () {
+    Log::info("Running auto redirect to uploaded_files");
     $receivedFiles = public_path('storage/received_files');
     $files = glob("$receivedFiles/*");
 
-    if($files) return redirect('uploaded_files');  
-    
+    if($files) redirect()->route('uploaded_files'); 
 })->everySecond();
     

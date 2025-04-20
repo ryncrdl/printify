@@ -16,12 +16,38 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 
 class TransferFileController extends Controller
 {
+    public function uploadFiles(Request $request){
+        $files = $request->files;
 
-    public function uploadedFiles(){
+        if(empty($files)) return response()->json(['message' => 'Uploading file is required.']);
+
+        foreach($files as $file){
+            $folder = public_path('storage/received_files');
+
+            $file_name = $file->getClientOriginalName();
+
+            $file->move($folder, $file_name);
+        }
+
+        $is_many = count($files) > 0;
+        $message = $is_many ? "Files have" : "File has";
+
+        return response()->json(['message' => "$message been uploaded successfully."]);
+    }
+
+    public function uploadedFiles(Request $request){
+        $agent = $request->header('User-Agent');
+        $is_mobile = $this->isMobile($agent);
+
+        if ($is_mobile) {
+            return response()->json(['redirect' => '/uploader'], 200);
+        }
+
         $receivedFiles  = public_path('storage/received_files');
         $files = glob("$receivedFiles/*");
 
         $data = [];
+      
         foreach($files as $file){
             $file_name  = basename($file);
             $path       = asset("storage/received_files/$file_name");
@@ -57,4 +83,10 @@ class TransferFileController extends Controller
         return response()->json(['message' => 'Waiting to send files via Bluetooth.'], 200);
        
     }
+
+    public function isMobile($agent)
+    {
+        return preg_match('/mobile|android|iphone|ipad|ipod|opera mini|iemobile|blackberry/i', $agent);
+    }
+
 }

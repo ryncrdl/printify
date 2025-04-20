@@ -15,6 +15,7 @@
                             src="/images/qr_code.png"
                             alt="The Buefy Logo"
                             ratio="1by1"
+                            style="object-fit: contain;"
                         ></b-image>
                     </div>
                 </div>
@@ -47,6 +48,12 @@
             }
         },
 
+        mounted(){
+            // setInterval(() => {
+                this.getFiles()
+            // }, 1000);
+        },
+
 
         methods: {
             async sendViaBluetooth(){
@@ -65,6 +72,33 @@
                         message: `<span class="is-size-4">${errorMessage}</span>`,
                         type: 'is-warning',
                     })
+                }
+            },
+
+            async getFiles() {
+                try {
+                    this.isLoading = true
+
+                    const response = await axios.get('/get_files');
+                    const response_files = response.data.files;
+
+                    const is_process = response_files.length > 0;
+                    if(is_process){
+                        window.location.href = "/uploaded_files"
+                    }
+
+                    if(response.data.redirect){
+                        window.location.href = response.data.redirect
+                    }
+                }catch(error){
+                    const errorMessage = error.response.data.message || error.message;
+                    this.$buefy.notification.open({
+                        duration: 5000,
+                        message: `<span class="is-size-4">${errorMessage}</span>`,
+                        type: 'is-warning',
+                    })
+                }finally {
+                    this.isLoading = false
                 }
             }
         }

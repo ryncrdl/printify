@@ -120,7 +120,7 @@ export default {
         this.files = await Promise.all(filePromises);
 
       } catch (error) {
-        const errorMessage = error.message;
+        const errorMessage = error.response.data.message || error.message;
         this.$buefy.notification.open({
           duration: 5000,
           message: `<span class="is-size-4">${errorMessage}</span>`,

@@ -7,6 +7,13 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TransferFileController;
 
 Route::get('/', function () {
+    $receivedFiles = public_path('storage/received_files');
+    $files = glob("$receivedFiles/*");
+
+    if (!empty($files)) {
+        return redirect()->route('uploaded_files');
+    }
+
     return Inertia::render('Home');
 });
 
@@ -14,11 +21,17 @@ Route::get('/uploaded_files', function () {
     return Inertia::render('UploadedFiles');
 })->name('uploaded_files');
 
+Route::get('/uploader', function () {
+    return Inertia::render('Uploader');
+})->name('uploader');
+
 
 //Blueooth API
 Route::get('/receive_bluetooth', [TransferFileController::class, 'receiveFile']);
 Route::get('/get_files', [TransferFileController::class, 'uploadedFiles']);
 
+//QC API
+Route::post('/upload_files', [TransferFileController::class, 'uploadFiles']);
 
 
 
