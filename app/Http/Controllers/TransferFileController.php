@@ -14,6 +14,9 @@ use Illuminate\Support\Facades\Redirect;
 use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 
+use Smalot\PdfParser\Parser as PdfParser;
+use PhpOffice\PhpWord\IOFactory as WordIOFactory;
+
 class TransferFileController extends Controller
 {
     public function uploadFiles(Request $request){
@@ -47,18 +50,45 @@ class TransferFileController extends Controller
         $files = glob("$receivedFiles/*");
 
         $data = [];
+        $page_data = [];
       
         foreach($files as $file){
             $file_name  = basename($file);
             $path       = asset("storage/received_files/$file_name");
 
+            $extension = pathinfo($file, PATHINFO_EXTENSION);
+
+            if (strtolower($extension) === 'pdf') {
+                $parser = new PdfParser();
+                $pdf    = $parser->parseFile($file);
+                $pages = count($pdf->getPages());
+            } elseif (in_array(strtolower($extension), ['doc', 'docx'])) {
+                $phpWord = WordIOFactory::load($file);
+                $text = '';
+                foreach ($phpWord->getSections() as $section) {
+                    foreach ($section->getElements() as $element) {
+                        if (method_exists($element, 'getText')) {
+                            $text .= $element->getText();
+                        }
+                    }
+                }
+
+                $pages = substr_count($text, "\f") + 1;
+            }
+
             $data[] = [
-                'file_name' => $file_name,
-                'path'      => $path
+                'file_name'     => $file_name,
+                'path'          => $path,
+            ];
+
+            $page_data[] = [
+                'file_name'     => $file_name,
+                'path'          => $path,
+                'total_page'    => $pages
             ];
         }
 
-        return response()->json(['files' => $data], 200);
+        return response()->json(['files' => $data, 'page_data' => $page_data], 200);
       
     }
 

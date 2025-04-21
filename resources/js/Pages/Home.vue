@@ -49,9 +49,9 @@
         },
 
         mounted(){
-            // setInterval(() => {
+            setInterval(() => {
                 this.getFiles()
-            // }, 1000);
+            }, 1000);
         },
 
 

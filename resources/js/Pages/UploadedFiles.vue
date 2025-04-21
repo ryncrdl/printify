@@ -35,15 +35,16 @@
               </template>
 
               <b-select v-model="color" size="is-small">
-                <option v-for="(option, index) in ['Color', 'Black & White']" :key="index">{{ option }}</option>
+                <option v-for="(option, index) in ['Colored', 'Black & White']" :key="index">{{ option }}</option>
               </b-select>
             </b-field>
            
           </div>
 
           <p>
-            <b>Status:</b> <span class="has-text-danger">Unpaid</span> <br> 
-            <b>Total Price: </b> {{ 100.00 }}
+            <b>Status:</b> <span class="has-text-danger">Unpaid</span> <br>   
+            <b>Total Page: </b> {{ totalPages }} {{ totalPages > 1 ? "Pages" : "Page" }}<br>
+            <b>Total Price: </b> &#x20B1; {{ totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
           </p>
           <div class="">
             <b-button type="is-danger" @click="isPayment = true">PAY</b-button>
@@ -81,7 +82,8 @@ export default {
       isPreview: false,
       isPayment: false,
       paper_size: 'Long',
-      color: 'Color',
+      color: 'Colored',
+      page_data: [],
       files: [],
       file: {}
     }
@@ -89,6 +91,8 @@ export default {
 
   mounted() {
     this.getFiles()
+
+    console.log(this.page_data)
   },
 
 
@@ -99,6 +103,8 @@ export default {
 
         const response = await axios.get('/get_files');
         const response_files = response.data.files;
+
+        this.page_data = response.data.page_data;
 
         const filePromises = response_files.map(async (fileMeta) => {
           const fileUrl = fileMeta.path;
@@ -144,7 +150,26 @@ export default {
     closePaymentOption(){
       this.isPayment = false
     }
+  },
+
+  computed: {
+    totalPages() {
+      return this.page_data.reduce((total, file) => {
+        return total + (Number(file.total_page) || 0);
+      }, 0);
+    },
+
+    totalPrice() {
+      const pages = this.totalPages; // No parentheses
+
+      if (this.paper_size === 'Long') {
+        return this.color === 'Colored' ? pages * 8 : pages * 5;
+      } else {
+        return this.color === 'Colored' ? pages * 7 : pages * 4;
+      }
+    }
   }
+
 
 };
 
