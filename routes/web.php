@@ -32,6 +32,7 @@ Route::get('/get_files', [TransferFileController::class, 'uploadedFiles']);
 
 //QC API
 Route::post('/upload_files', [TransferFileController::class, 'uploadFiles']);
+Route::post('/update_price', [TransferFileController::class, 'updatePrice']);
 
 
 

@@ -2,19 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\File;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\RedirectResponse;
-
+use PhpParser\Node\Stmt\TryCatch;
 use Symfony\Component\Process\Process;
 use Illuminate\Support\Facades\Redirect;
-use App\Http\Requests\ProfileUpdateRequest;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
 
 use Smalot\PdfParser\Parser as PdfParser;
+use App\Http\Requests\ProfileUpdateRequest;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use PhpOffice\PhpWord\IOFactory as WordIOFactory;
 
 class TransferFileController extends Controller
@@ -24,18 +27,55 @@ class TransferFileController extends Controller
 
         if(empty($files)) return response()->json(['message' => 'Uploading file is required.']);
 
+        $transaction_id = $this->transaction_id();
+
+        $files_path = [];
+        $absolute_paths = [];
+
         foreach($files as $file){
             $folder = public_path('storage/received_files');
+            $absolute_path = public_path($folder);
 
             $file_name = $file->getClientOriginalName();
 
             $file->move($folder, $file_name);
+
+            $path = asset("$folder/$file_name");
+
+            $files_path[] = $path;
+            $absolute_paths[] = $absolute_path;
         }
 
         $is_many = count($files) > 0;
         $message = $is_many ? "Files have" : "File has";
 
-        return response()->json(['message' => "$message been uploaded successfully."]);
+        $transaction = [
+            'transaction_id' => $transaction_id,
+            'files'          => json_encode($files_path),
+            'pages'          => "0",
+            "size"           => "Long",
+            "color"          => "Colored",
+            "price"          => "0.00",
+            'status'         => 'unpaid'
+        ];
+
+        try {
+            DB::beginTransaction();
+            File::create($transaction);
+            DB::commit();
+    
+            return response()->json(['message' => "$message been uploaded successfully."]);
+        } catch (\Exception $e) {
+
+            foreach ($absolute_paths as $path) {
+                if (file_exists($path)) {
+                    unlink($path);
+                }
+            }
+
+            DB::rollBack();
+            return response()->json(['message' => 'An error occurred.', 'error' => $e->getMessage()], 500);
+        }
     }
 
     public function uploadedFiles(Request $request){
@@ -88,8 +128,9 @@ class TransferFileController extends Controller
             ];
         }
 
-        return response()->json(['files' => $data, 'page_data' => $page_data], 200);
-      
+        $transaction = File::whereIn('status', ['unpaid', 'paid'])->first();
+
+        return response()->json(['files' => $data, 'page_data' => $page_data, 'transaction' => $transaction], 200);
     }
 
     public function receiveFile()
@@ -117,6 +158,36 @@ class TransferFileController extends Controller
     public function isMobile($agent)
     {
         return preg_match('/mobile|android|iphone|ipad|ipod|opera mini|iemobile|blackberry/i', $agent);
+    }
+
+    public function updatePrice(Request $request)
+    {
+        $transaction = (object) $request->input('params');
+    
+        try {
+            DB::beginTransaction();
+            File::where('transaction_id', $transaction->transaction_id)
+                ->update([
+                    'pages' => (string) $transaction->pages,
+                    'price' => (string) $transaction->price
+                ]);
+            DB::commit();
+            return response()->json(['message' => 'Price updated successfully.']);
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            return response()->json(['message' => $th->getMessage()], 500);
+        }
+    }
+    
+
+    public function transaction_id(){
+        $files = File::all(); 
+        $countFiles = count($files) + 1;
+    
+        $date = date('Ymd'); 
+        $transactionId = $date . '-' . str_pad($countFiles, 6, '0', STR_PAD_LEFT);
+    
+        return $transactionId;
     }
 
 }

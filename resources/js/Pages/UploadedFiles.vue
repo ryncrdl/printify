@@ -42,13 +42,13 @@
           </div>
 
           <p>
-            <b>Status:</b> <span class="has-text-danger">Unpaid</span> <br>   
+            <b>Status:</b> <span class="has-text-danger">{{ status.toUpperCase() }}</span> <br>   
             <b>Total Page: </b> {{ totalPages }} {{ totalPages > 1 ? "Pages" : "Page" }}<br>
             <b>Total Price: </b> &#x20B1; {{ totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
           </p>
           <div class="">
-            <b-button type="is-danger" @click="isPayment = true">PAY</b-button>
-            <b-button type="is-info" class="ml-2">PRINT</b-button>
+            <b-button v-if="status === 'unpaid'" type="is-danger" @click="isPayment = true">PAY</b-button>
+            <b-button v-else type="is-info" class="ml-2">PRINT</b-button>
           </div>
         </div>
     </div>
@@ -81,18 +81,18 @@ export default {
       isLoading: false,
       isPreview: false,
       isPayment: false,
+      transaction_id: '',
       paper_size: 'Long',
       color: 'Colored',
       page_data: [],
+      status: 'unpaid',
       files: [],
       file: {}
     }
   },
 
   mounted() {
-    this.getFiles()
-
-    console.log(this.page_data)
+    this.getFiles() 
   },
 
 
@@ -103,6 +103,13 @@ export default {
 
         const response = await axios.get('/get_files');
         const response_files = response.data.files;
+        const transaction = response.data.transaction;
+
+        this.paper_size     = transaction.size;
+        this.color          = transaction.color;
+        this.status         = transaction.status
+        this.transaction_id = transaction.transaction_id
+
 
         this.page_data = response.data.page_data;
 
@@ -124,7 +131,7 @@ export default {
         });
 
         this.files = await Promise.all(filePromises);
-
+        this.updatePrice()
       } catch (error) {
         const errorMessage = error.response.data.message || error.message;
         this.$buefy.notification.open({
@@ -136,6 +143,30 @@ export default {
         this.isLoading = false;
       }
     },
+
+    async updatePrice(){
+      try {
+        const form = {
+          transaction_id: this.transaction_id,
+          price: this.totalPrice,
+          pages: this.totalPages
+        }
+        const response = await axios.post('/update_price', {params: form});
+
+
+      } catch (error) {
+        const errorMessage = error.message;
+        this.$buefy.notification.open({
+          duration: 5000,
+          message: `<span class="is-size-4">${errorMessage}</span>`,
+          type: 'is-warning',
+        })
+      }finally {
+        this.isLoading = false;
+      }
+    },  
+
+
 
 
     selectFile(selected_file){
@@ -168,7 +199,18 @@ export default {
         return this.color === 'Colored' ? pages * 7 : pages * 4;
       }
     }
+  },
+
+  watch: {
+    paper_size(newVal){
+      this.updatePrice()
+    },
+    color(newVal){
+      this.updatePrice()
+    }
   }
+
+
 
 
 };
