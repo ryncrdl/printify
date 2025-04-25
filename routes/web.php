@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\PaymentController;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Application;
@@ -33,10 +34,26 @@ Route::get('/get_files', [TransferFileController::class, 'uploadedFiles']);
 //QC API
 Route::post('/upload_files', [TransferFileController::class, 'uploadFiles']);
 Route::post('/update_price', [TransferFileController::class, 'updatePrice']);
+Route::post('/create_payment', [TransferFileController::class, 'createPayment']);
+Route::post('/paymongo/webhook', [TransferFileController::class, 'handleWebhook']);
 
+//PAYMENTS
+Route::get('/payment-success', function () {
+    return Inertia::render('PrintPage');
+})->name('payment.success');
 
+Route::get('/payment-failed', function () {
+    return 'Payment failed. Please try again.';
+})->name('payment.failed');
 
+//COINS
+// Route::post('/coin_inserted', [PaymentController::class, 'CoinInserted'])->middleware('disableCsrfForCoinRoute');
 
+Route::get('/get_coin', function () {
+    $coins = Cache::get('set_coin', 0);
+    Cache::forget('set_coin');
+    return ['amount' => $coins];
+});
 
 // Route::get('/', function () {
 //     return Inertia::render('Welcome', [

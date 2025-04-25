@@ -15,8 +15,6 @@
           </div>
         </div>
 
-    
-
         <div class="is-flex is-align-items-center is-justify-content-space-between">
           <div>
             <b-field horizontal>
@@ -59,7 +57,7 @@
     </b-modal>
 
     <b-modal v-model="isPayment" :can-cancel="false">
-      <PaymentOption @closePaymentOption="closePaymentOption"/>
+      <PaymentOption @closePaymentOption="closePaymentOption" :transaction="transaction"/>
     </b-modal>
   </section>
 </template>
@@ -81,6 +79,7 @@ export default {
       isLoading: false,
       isPreview: false,
       isPayment: false,
+      transaction: {},
       transaction_id: '',
       paper_size: 'Long',
       color: 'Colored',
@@ -109,7 +108,7 @@ export default {
         this.color          = transaction.color;
         this.status         = transaction.status
         this.transaction_id = transaction.transaction_id
-
+        this.transaction    = transaction
 
         this.page_data = response.data.page_data;
 

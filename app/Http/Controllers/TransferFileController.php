@@ -6,15 +6,16 @@ use App\Models\File;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Http\RedirectResponse;
 use PhpParser\Node\Stmt\TryCatch;
-use Symfony\Component\Process\Process;
-use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\DB;
 
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Http\RedirectResponse;
+use Symfony\Component\Process\Process;
+
+use Illuminate\Support\Facades\Redirect;
 use Smalot\PdfParser\Parser as PdfParser;
 use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -22,6 +23,51 @@ use PhpOffice\PhpWord\IOFactory as WordIOFactory;
 
 class TransferFileController extends Controller
 {
+    public function createPayment(Request $request){
+        try {
+          
+            $transaction = (object) $request->input('transaction');
+            $amount = 2000; // Amount in centavos (e.g., ₱20.00)
+            $description = $request->description ?? 'GCash QR Payment';
+    
+            $response = Http::withBasicAuth(env('PAYMONGO_SECRET_KEY'), '')
+                ->post('https://api.paymongo.com/v1/sources', [
+                    'data' => [
+                        'attributes' => [
+                            'amount' => $amount,
+                            'currency' => 'PHP',
+                            'type' => 'gcash',
+                            'description' => $description,
+                            'redirect' => [
+                                'success' => route('payment.success'), 
+                                'failed' => route('payment.failed')   
+                            ]
+                        ]
+                    ]
+                ]);
+
+            $responseData = $response->json();
+
+            if (!$response->successful()) {
+                return response()->json([
+                    'message' => 'PayMongo API Error',
+                    'errors' => $responseData['errors'] ?? $responseData
+                ], $response->status());
+            }
+
+            $source = $responseData['data'];
+    
+            return response()->json([
+                'checkout_url' => $source['attributes']['redirect']['checkout_url'], // Use this instead of qr_code
+                'source_id' => $source['id'],
+                'status' => $source['attributes']['status']
+            ]);
+        } catch (\Throwable $th) {
+            return response()->json(['message' => $th->getMessage()], 500);
+        }
+    }
+
+
     public function uploadFiles(Request $request){
         $files = $request->files;
 

@@ -16,6 +16,7 @@ class HandleInertiaRequests extends Middleware
 
     protected $except = [
         '/transfer/receive',
+        '/coin_inserted'
     ];
 
     /**

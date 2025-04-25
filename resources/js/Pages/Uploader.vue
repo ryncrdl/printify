@@ -6,7 +6,7 @@
         </div>
         <div class="hero-body">
             <div class="container card  p-6 ">
-                <div class="has-text-centered" v-if="!isProcess">
+                <div class="has-text-centered" v-if="page_data.length <= 0">
                     <p class="title is-size-3">Upload Files</p>
                     <p class="subtitle is-size-6">Only pdf and docs/docx are allowed</p>
 
@@ -46,11 +46,14 @@ export default {
             isLoading: false,
             isProcess: false,
             files: [],
+            page_data: []
         }
     },
 
     mounted(){
-        this.getFiles()
+        // setInterval(() => {
+            this.getFiles()
+        // }, 1000)
     },
 
     methods: {
@@ -104,9 +107,7 @@ export default {
                 const response = await axios.get('/get_files');
                 const response_files = response.data.files;
 
-                if(response_files.length > 0){
-                    this.isProcess = true
-                }
+                this.page_data = response.data.page_data
             }catch(error){
                 const errorMessage = error.response.data.message || error.message;
                 this.$buefy.notification.open({
