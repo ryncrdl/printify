@@ -23,49 +23,49 @@ use PhpOffice\PhpWord\IOFactory as WordIOFactory;
 
 class TransferFileController extends Controller
 {
-    public function createPayment(Request $request){
-        try {
+    // public function createPayment(Request $request){
+    //     try {
           
-            $transaction = (object) $request->input('transaction');
-            $amount = 2000; // Amount in centavos (e.g., ₱20.00)
-            $description = $request->description ?? 'GCash QR Payment';
+    //         $transaction = (object) $request->input('transaction');
+    //         $amount = 2000; // Amount in centavos (e.g., ₱20.00)
+    //         $description = $request->description ?? 'GCash QR Payment';
     
-            $response = Http::withBasicAuth(env('PAYMONGO_SECRET_KEY'), '')
-                ->post('https://api.paymongo.com/v1/sources', [
-                    'data' => [
-                        'attributes' => [
-                            'amount' => $amount,
-                            'currency' => 'PHP',
-                            'type' => 'gcash',
-                            'description' => $description,
-                            'redirect' => [
-                                'success' => route('payment.success'), 
-                                'failed' => route('payment.failed')   
-                            ]
-                        ]
-                    ]
-                ]);
+    //         $response = Http::withBasicAuth(env('PAYMONGO_SECRET_KEY'), '')
+    //             ->post('https://api.paymongo.com/v1/sources', [
+    //                 'data' => [
+    //                     'attributes' => [
+    //                         'amount' => $amount,
+    //                         'currency' => 'PHP',
+    //                         'type' => 'gcash',
+    //                         'description' => $description,
+    //                         'redirect' => [
+    //                             'success' => route('payment.success'), 
+    //                             'failed' => route('payment.failed')   
+    //                         ]
+    //                     ]
+    //                 ]
+    //             ]);
 
-            $responseData = $response->json();
+    //         $responseData = $response->json();
 
-            if (!$response->successful()) {
-                return response()->json([
-                    'message' => 'PayMongo API Error',
-                    'errors' => $responseData['errors'] ?? $responseData
-                ], $response->status());
-            }
+    //         if (!$response->successful()) {
+    //             return response()->json([
+    //                 'message' => 'PayMongo API Error',
+    //                 'errors' => $responseData['errors'] ?? $responseData
+    //             ], $response->status());
+    //         }
 
-            $source = $responseData['data'];
+    //         $source = $responseData['data'];
     
-            return response()->json([
-                'checkout_url' => $source['attributes']['redirect']['checkout_url'], // Use this instead of qr_code
-                'source_id' => $source['id'],
-                'status' => $source['attributes']['status']
-            ]);
-        } catch (\Throwable $th) {
-            return response()->json(['message' => $th->getMessage()], 500);
-        }
-    }
+    //         return response()->json([
+    //             'checkout_url' => $source['attributes']['redirect']['checkout_url'], // Use this instead of qr_code
+    //             'source_id' => $source['id'],
+    //             'status' => $source['attributes']['status']
+    //         ]);
+    //     } catch (\Throwable $th) {
+    //         return response()->json(['message' => $th->getMessage()], 500);
+    //     }
+    // }
 
 
     public function uploadFiles(Request $request){
@@ -215,10 +215,14 @@ class TransferFileController extends Controller
             File::where('transaction_id', $transaction->transaction_id)
                 ->update([
                     'pages' => (string) $transaction->pages,
-                    'price' => (string) $transaction->price
+                    'price' => (string) $transaction->price,
+                    'size' => (string) $transaction->size,
+                    'color' => (string) $transaction->color
                 ]);
+
+            $data =  File::where('transaction_id', $transaction->transaction_id)->first();
             DB::commit();
-            return response()->json(['message' => 'Price updated successfully.']);
+            return response()->json(['message' => 'Price updated successfully.', 'data' => $data]);
         } catch (\Throwable $th) {
             DB::rollBack();
             return response()->json(['message' => $th->getMessage()], 500);

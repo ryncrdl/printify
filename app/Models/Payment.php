@@ -8,20 +8,14 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
-class File extends Model
+class Payment extends Model
 {
-    protected $table = "files";
-
+    protected $table = "payments";
 
     protected $fillable = [
         'transaction_id',
-        'files',
-        'pages',
-        'size',
-        'color',
-        'price',
-        'status',
+        'payment_id',
+        'attributes',
     ];
-
    
 }

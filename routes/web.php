@@ -23,28 +23,29 @@ Route::middleware('auth')->group(function () {
     Route::get('/uploaded_files', function () {
         return Inertia::render('UploadedFiles');
     })->name('uploaded_files');
-
-    //Blueooth API
-    Route::get('/receive_bluetooth', [TransferFileController::class, 'receiveFile']);
-    Route::get('/get_files', [TransferFileController::class, 'uploadedFiles']);
-
-    //QC API
-    Route::post('/upload_files', [TransferFileController::class, 'uploadFiles']);
-    Route::post('/update_price', [TransferFileController::class, 'updatePrice']);
-    Route::post('/create_payment', [TransferFileController::class, 'createPayment']);
-    Route::post('/paymongo/webhook', [TransferFileController::class, 'handleWebhook']);
-
     
-    //COINS
-    // Route::post('/coin_inserted', [PaymentController::class, 'CoinInserted'])->middleware('disableCsrfForCoinRoute');
+});
 
-    Route::get('/get_coin', function () {
-        $coins = Cache::get('set_coin', 0);
-        Cache::forget('set_coin');
-        return ['amount' => $coins];
-    });
+//Blueooth API
+Route::get('/receive_bluetooth', [TransferFileController::class, 'receiveFile']);
+Route::get('/get_files', [TransferFileController::class, 'uploadedFiles']);
 
-    
+//QC API
+Route::post('/upload_files', [TransferFileController::class, 'uploadFiles']);
+Route::post('/update_price', [TransferFileController::class, 'updatePrice']);
+Route::post('/update_status', [PaymentController::class, 'updateStatus']);
+
+Route::post('/create_payment', [PaymentController::class, 'createQRPayment']);
+Route::post('/get_payment_status', [PaymentController::class, 'getPaymentStatus']);
+
+
+//COINS
+// Route::post('/coin_inserted', [PaymentController::class, 'CoinInserted'])->middleware('disableCsrfForCoinRoute');
+
+Route::get('/get_coin', function () {
+    $coins = Cache::get('set_coin', 0);
+    Cache::forget('set_coin');
+    return ['amount' => $coins];
 });
 
 Route::get('/uploader', function () {

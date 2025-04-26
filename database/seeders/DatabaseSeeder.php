@@ -18,7 +18,7 @@ class DatabaseSeeder extends Seeder
 
         User::factory()->create([
             'name' => 'Printify Administrator',
-            'email' => 'printify@gmail.com.com',
+            'email' => 'printify@gmail.com',
             'password' => Hash::make('printify2025'), 
             'email_verified_at' => now(), 
         ]);

@@ -40,13 +40,13 @@
           </div>
 
           <p>
-            <b>Status:</b> <span class="has-text-danger">{{ status.toUpperCase() }}</span> <br>   
+            <b>Status:</b> <span :class="status === 'unpaid' ? 'has-text-danger' : 'has-text-success'">{{ status.toUpperCase() }}</span> <br>   
             <b>Total Page: </b> {{ totalPages }} {{ totalPages > 1 ? "Pages" : "Page" }}<br>
             <b>Total Price: </b> &#x20B1; {{ totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
           </p>
           <div class="">
             <b-button v-if="status === 'unpaid'" type="is-danger" @click="isPayment = true">PAY</b-button>
-            <b-button v-else type="is-info" class="ml-2">PRINT</b-button>
+            <b-button v-else type="is-info" class="ml-2" @click="autoPrintFiles">PRINT</b-button>
           </div>
         </div>
     </div>
@@ -57,7 +57,7 @@
     </b-modal>
 
     <b-modal v-model="isPayment" :can-cancel="false">
-      <PaymentOption @closePaymentOption="closePaymentOption" :transaction="transaction"/>
+      <PaymentOption @closePaymentOption="closePaymentOption" @updateStatus="updateStatus" :transaction="transaction"/>
     </b-modal>
   </section>
 </template>
@@ -101,6 +101,11 @@ export default {
         this.isLoading = true
 
         const response = await axios.get('/get_files');
+
+        if(response.data.files <= 0){
+          window.location.href = "dashboard"
+        }
+
         const response_files = response.data.files;
         const transaction = response.data.transaction;
 
@@ -148,11 +153,15 @@ export default {
         const form = {
           transaction_id: this.transaction_id,
           price: this.totalPrice,
-          pages: this.totalPages
+          pages: this.totalPages,
+          size:  this.paper_size,
+          color: this.color
         }
+        
         const response = await axios.post('/update_price', {params: form});
-
-
+        const transaction = response.data.data
+        this.transaction.price = transaction.price
+        
       } catch (error) {
         const errorMessage = error.message;
         this.$buefy.notification.open({
@@ -165,6 +174,104 @@ export default {
       }
     },  
 
+    async updateStatus(){
+      try {
+        const form = {
+          transaction_id: this.transaction_id,
+          status: 'paid',
+        }
+
+        const response = await axios.post('/update_status', {params: form});
+
+        this.$buefy.notification.open({
+          duration: 5000,
+          message: `<span class="is-size-4">${response.data.message}</span>`,
+          type: 'is-success',
+        })
+
+        this.closePaymentOption()
+        this.getFiles()
+      } catch (error) {
+        const errorMessage = error.message;
+        this.$buefy.notification.open({
+          duration: 5000,
+          message: `<span class="is-size-4">${errorMessage}</span>`,
+          type: 'is-warning',
+        })
+      }finally {
+        this.isLoading = false;
+      }
+    },  
+
+    async autoPrintFiles() {
+  try {
+    for (const file of this.files) {
+      const fileExtension = file.name.split('.').pop().toLowerCase();
+
+      if (fileExtension !== 'pdf') {
+        this.$buefy.notification.open({
+          message: `<span class="is-size-5">Cannot print "${file.name}". Only PDF files are printable directly.</span>`,
+          type: 'is-warning',
+        });
+        continue; // Skip non-PDF files
+      }
+
+      const fileURL = URL.createObjectURL(file); // Create URL for PDF
+
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        this.$buefy.notification.open({
+          message: 'Pop-up blocked. Please allow pop-ups for this website.',
+          type: 'is-danger',
+        });
+        return;
+      }
+
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Print File</title>
+            <style>
+              @page {
+                size: ${this.paper_size === 'Long' ? '8.5in 13in' : '8.5in 11in'};
+              }
+              body {
+                margin: 0;
+                padding: 0;
+              }
+              embed {
+                width: 100%;
+                height: 100vh;
+              }
+            </style>
+          </head>
+          <body>
+            <embed src="${fileURL}" type="application/pdf" />
+          </body>
+        </html>
+      `);
+
+      printWindow.document.close();
+      printWindow.focus();
+
+      printWindow.onload = () => {
+        setTimeout(() => { // give it time to load the PDF
+          printWindow.print();
+          printWindow.onafterprint = () => {
+            printWindow.close();
+            URL.revokeObjectURL(fileURL); // clean up
+          };
+        }, 500); // 0.5 second wait to ensure the file is ready
+      };
+    }
+  } catch (error) {
+    console.error('Print error:', error);
+    this.$buefy.notification.open({
+      message: `<span class="is-size-4">${error.message}</span>`,
+      type: 'is-warning',
+    });
+  }
+},
 
 
 
