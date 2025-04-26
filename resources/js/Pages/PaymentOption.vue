@@ -79,7 +79,6 @@ export default {
 
     methods: {
         closeModal() {
-            this.$emit('closePaymentOption')
             this.mop = null
             this.clearCoinInterval()
         },
@@ -99,18 +98,21 @@ export default {
             try {
                 this.isLoading = true
                 const response = await axios.post('/create_payment', { transaction: this.transaction })
-                const data = response.data.data
+                const data = response.data?.data
 
-                const checkout_url = data.attributes.checkout_url
+                const checkout_url = data?.attributes.checkout_url
 
-                this.qrUrl = await QRCode.toDataURL(checkout_url, {
-                    width: 300,
-                    margin: 2,
-                })
+                if(checkout_url){
+                    this.qrUrl = await QRCode.toDataURL(checkout_url, {
+                        width: 300,
+                        margin: 2,
+                    })
 
-                this.payment_id = data.id
+                    this.payment_id = data.id
+                }
+              
             } catch (error) {
-                const errorMessage = error.response?.data?.message || error.message
+                const errorMessage = error.message
                 this.$buefy.notification.open({
                     duration: 5000,
                     message: `<span class="is-size-4">${errorMessage}</span>`,
@@ -123,21 +125,23 @@ export default {
 
         async getPaymentStatus() {
             try {
-                const response = await axios.post('/get_payment_status', { payment_id: this.payment_id })
-                const data = response.data.data
+                if(this.payment_id){
+                    const response = await axios.post('/get_payment_status', { payment_id: this.payment_id })
+                    const data = response.data.data
 
-                this.coins = parseFloat(data.amount || 0)
-                this.status = data.status
+                    this.coins = parseFloat(data.amount || 0)
+                    this.status = data.status
 
-                if (data.status === 'paid') {
-                    this.$emit('updateStatus')
-                    this.resetPayment()
+                    if (data.status === 'paid') {
+                        this.$emit('updateStatus')
+                        this.resetPayment()
+                    }
                 }
             } catch (error) {
-                const errorMessage = error.response?.data?.message || error.message
+                const errorMessage = error.message
                 this.$buefy.notification.open({
                     duration: 5000,
-                    message: `<span class="is-size-4">${errorMessage}</span>`,
+                    message: `<span class="is-size-4">Payment Update Error: ${errorMessage}</span>`,
                     type: 'is-warning',
                 })
             }
@@ -149,7 +153,6 @@ export default {
                 this.coins += parseFloat(response.data.amount) || 0
 
                 if (this.coins >= this.required_amount) {
-                    this.$emit('updateStatus')
                     this.resetPayment()
                 }
             } catch (error) {
@@ -176,6 +179,8 @@ export default {
             this.payment_id = null
             this.status = 'unpaid'
             this.qrUrl = ""
+            this.$emit('updateStatus')
+            this.$emit('closePaymentOption')
         },
     },
 
