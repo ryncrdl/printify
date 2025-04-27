@@ -31,12 +31,15 @@ Route::get('/receive_bluetooth', [TransferFileController::class, 'receiveFile'])
 Route::get('/get_files', [TransferFileController::class, 'uploadedFiles']);
 
 //QC API
-Route::post('/upload_files', [TransferFileController::class, 'uploadFiles']);
 Route::post('/update_price', [TransferFileController::class, 'updatePrice']);
 Route::post('/update_status', [PaymentController::class, 'updateStatus']);
 
 Route::post('/create_payment', [PaymentController::class, 'createQRPayment']);
 Route::post('/get_payment_status', [PaymentController::class, 'getPaymentStatus']);
+
+Route::post('/print', [TransferFileController::class, 'Print']);
+
+
 
 
 //COINS

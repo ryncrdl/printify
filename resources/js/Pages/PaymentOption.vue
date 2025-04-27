@@ -79,8 +79,7 @@ export default {
 
     methods: {
         closeModal() {
-            this.mop = null
-            this.clearCoinInterval()
+            this.$emit('closePaymentOption')
         },
 
         selectMOP(mop) {

@@ -22,7 +22,7 @@
                 <span style="white-space: nowrap;">Paper</span>
               </template>
 
-              <b-select v-model="paper_size" size="is-small">
+              <b-select v-model="paper_size" size="is-small" :disabled="status === 'paid'">
                 <option v-for="(option, index) in ['Long', 'Short']" :key="index">{{ option }}</option>
               </b-select>
             </b-field>
@@ -32,7 +32,7 @@
                 <span style="white-space: nowrap;">Color</span>
               </template>
 
-              <b-select v-model="color" size="is-small">
+              <b-select v-model="color" size="is-small" :disabled="status === 'paid'">
                 <option v-for="(option, index) in ['Colored', 'Black & White']" :key="index">{{ option }}</option>
               </b-select>
             </b-field>
@@ -204,80 +204,33 @@ export default {
     },  
 
     async autoPrintFiles() {
-  try {
-    for (const file of this.files) {
-      const fileExtension = file.name.split('.').pop().toLowerCase();
+      try {
+        this.isLoading = true
 
-      if (fileExtension !== 'pdf') {
+        const response = await axios.post('/print', {transaction: this.transaction});
+
         this.$buefy.notification.open({
-          message: `<span class="is-size-5">Cannot print "${file.name}". Only PDF files are printable directly.</span>`,
-          type: 'is-warning',
+            message: `<span class="is-size-4">${response.data.message}</span>`,
+            type: 'is-success',
         });
-        continue; // Skip non-PDF files
-      }
 
-      const fileURL = URL.createObjectURL(file); // Create URL for PDF
-
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) {
+        window.location.href = "/dashboard"
+      } catch (error) {
+        console.error('Print error:', error);
         this.$buefy.notification.open({
-          message: 'Pop-up blocked. Please allow pop-ups for this website.',
-          type: 'is-danger',
+            message: `<span class="is-size-4">${error.message}</span>`,
+            type: 'is-warning',
         });
-        return;
+      }finally{
+        this.isLoading = false
       }
-
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Print File</title>
-            <style>
-              @page {
-                size: ${this.paper_size === 'Long' ? '8.5in 13in' : '8.5in 11in'};
-              }
-              body {
-                margin: 0;
-                padding: 0;
-              }
-              embed {
-                width: 100%;
-                height: 100vh;
-              }
-            </style>
-          </head>
-          <body>
-            <embed src="${fileURL}" type="application/pdf" />
-          </body>
-        </html>
-      `);
-
-      printWindow.document.close();
-      printWindow.focus();
-
-      printWindow.onload = () => {
-        setTimeout(() => { // give it time to load the PDF
-          printWindow.print();
-          printWindow.onafterprint = () => {
-            printWindow.close();
-            URL.revokeObjectURL(fileURL); // clean up
-          };
-        }, 500); // 0.5 second wait to ensure the file is ready
-      };
-    }
-  } catch (error) {
-    console.error('Print error:', error);
-    this.$buefy.notification.open({
-      message: `<span class="is-size-4">${error.message}</span>`,
-      type: 'is-warning',
-    });
-  }
-},
+    },
 
 
 
     selectFile(selected_file){
-        this.file = selected_file
-        this.isPreview = true
+      this.file = selected_file
+      this.isPreview = true
     },
 
     closeModal(){

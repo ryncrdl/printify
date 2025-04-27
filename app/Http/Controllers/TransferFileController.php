@@ -21,57 +21,20 @@ use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use PhpOffice\PhpWord\IOFactory as WordIOFactory;
 
+use Illuminate\Support\Facades\File as FileFacade; 
+use Illuminate\Support\Str;
+
 class TransferFileController extends Controller
-{
-    // public function createPayment(Request $request){
-    //     try {
-          
-    //         $transaction = (object) $request->input('transaction');
-    //         $amount = 2000; // Amount in centavos (e.g., ₱20.00)
-    //         $description = $request->description ?? 'GCash QR Payment';
-    
-    //         $response = Http::withBasicAuth(env('PAYMONGO_SECRET_KEY'), '')
-    //             ->post('https://api.paymongo.com/v1/sources', [
-    //                 'data' => [
-    //                     'attributes' => [
-    //                         'amount' => $amount,
-    //                         'currency' => 'PHP',
-    //                         'type' => 'gcash',
-    //                         'description' => $description,
-    //                         'redirect' => [
-    //                             'success' => route('payment.success'), 
-    //                             'failed' => route('payment.failed')   
-    //                         ]
-    //                     ]
-    //                 ]
-    //             ]);
-
-    //         $responseData = $response->json();
-
-    //         if (!$response->successful()) {
-    //             return response()->json([
-    //                 'message' => 'PayMongo API Error',
-    //                 'errors' => $responseData['errors'] ?? $responseData
-    //             ], $response->status());
-    //         }
-
-    //         $source = $responseData['data'];
-    
-    //         return response()->json([
-    //             'checkout_url' => $source['attributes']['redirect']['checkout_url'], // Use this instead of qr_code
-    //             'source_id' => $source['id'],
-    //             'status' => $source['attributes']['status']
-    //         ]);
-    //     } catch (\Throwable $th) {
-    //         return response()->json(['message' => $th->getMessage()], 500);
-    //     }
-    // }
-
-
-    public function uploadFiles(Request $request){
+{    public function uploadFiles(Request $request){
         $files = $request->files;
 
-        if(empty($files)) return response()->json(['message' => 'Uploading file is required.']);
+        if(empty($files)) return response()->json(['message' => 'Uploading file is required.'], 500);
+
+        $is_process =  File::whereIn('status', ['unpaid', 'paid'])->get();
+
+        if(count($is_process) >= 1){
+            return response()->json(['message' => 'Sorry! The system is processing'], 500);
+        }
 
         $transaction_id = $this->transaction_id();
 
@@ -238,6 +201,57 @@ class TransferFileController extends Controller
         $transactionId = $date . '-' . str_pad($countFiles, 6, '0', STR_PAD_LEFT);
     
         return $transactionId;
+    }
+
+    public function Print(Request $request){
+        try {
+            $transaction = (object) $request->input('transaction');
+
+            $destination_folder = 'C:/Users/kaye/Desktop/printifty-ready-for-print';
+            $files              = json_decode($transaction->files);
+            $public_path        = public_path('/storage/received_files');
+            $size               = $transaction->size;
+            $color              = $transaction->color;
+            $transaction_id     = $transaction->transaction_id;
+
+            $sizeLetter = strtoupper($size) === 'Long' ? 'L' : 'S';
+            $colorLetter = strtoupper($color) === 'Colored' ? 'C' : 'B';
+
+            if (!FileFacade::exists($destination_folder)) {
+                FileFacade::makeDirectory($destination_folder, 0777, true);
+            }
+
+            foreach($files as $index => $file){
+
+                $file_name      = basename($file);
+                $source_path    = public_path("storage/received_files/$file_name");
+
+                if (!file_exists($source_path)) {
+                    return response()->json(['message' => "File not found: {$source_path}"], 500);
+                }
+
+                $extension  = pathinfo($file_name, flags: PATHINFO_EXTENSION);
+                $new_name   = "$transaction_id" . "_" . "$index" . "_" . "$sizeLetter$colorLetter" . "." . "$extension";
+
+                $destination_path = "$destination_folder/$new_name";
+
+                if (!file_exists($source_path)) {
+                    return response()->json(['message' => "File not found: {$source_path}"], 500);
+                }
+             
+                if (!rename($source_path, $destination_path)) {
+                    return response()->json(['message' => "Failed to move {$file_name}"], 500);
+                }
+            }
+        
+            DB::beginTransaction();
+            File::where('transaction_id', $transaction_id)->update(['status' => 'done']);
+            DB::commit();
+      
+            return response()->json(['message' =>  "Your' files is already to print."], 200);
+        } catch (\Throwable $th) {
+            return response()->json(['message' =>  $th->getMessage() ], 500);
+        }
     }
 
 }

@@ -6,7 +6,7 @@
       
             <div class="container">
                 <p class="has-text-centered is-size-4 has-text-weight-bold">PREVIEW FILE</p>
-                <VueFilesPreview :file="file"/>
+                <VueFilesPreview :file="file" />
             </div>
       
     </div>
@@ -27,7 +27,15 @@ export default {
     },
 
     mounted(){
+        const iframe = this.$el.querySelector('iframe');
+        if (iframe) {
+            const iframeWindow = iframe.contentWindow;
 
+            iframeWindow.print = function() {
+                console.log('Print function disabled.');
+                return false;
+            };
+        }
     },      
 
     methods: {
