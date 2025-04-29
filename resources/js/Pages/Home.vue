@@ -11,8 +11,9 @@
                     <p class="subtitle is-size-6">Use the built-in QR code scanner on your phone.</p>
 
                     <div>
+                        <!-- src="/images/qr_code.png" -->
                         <b-image
-                            src="/images/qr_code.png"
+                            :src="qr_code_url"
                             alt="The Buefy Logo"
                             ratio="1by1"
                             style="object-fit: contain;"
@@ -38,71 +39,86 @@
       
     </section>
 </template>
-
 <script>
-    export default {
-        data() {
-            return {
-                checkbox: false,
-                checkboxCustom: 'Yes'
+import QRCode from 'qrcode'
+export default {
+    data() {
+        return {
+            checkbox: false,
+            qr_code_url: "",
+            checkboxCustom: 'Yes'
+        }
+    },
+
+    mounted(){
+      // setInterval(() => {
+            this.getFiles()
+    //    }, 5000);
+        // if (!this.files || this.files.length === 0) {
+        //     this.getFiles();
+        // }
+
+        this.generateQRCode()
+    },
+
+
+    methods: {
+        async generateQRCode(){
+            const qr_code_url = await QRCode.toDataURL("https://printify.icu/uploader", {
+                width: 300,
+                margin: 2,
+            })
+
+            this.qr_code_url = qr_code_url
+        },
+
+        async sendViaBluetooth(){
+            try {
+                const response = await axios.get('/receive_bluetooth');
+                this.$buefy.notification.open({
+                    duration: 5000,
+                    message: `<span class="is-size-4">${response.data.message}</span>`,
+                    type: 'is-success',
+                })
+                
+            } catch (error) {
+                const errorMessage = error.response.data.message || error.message
+                this.$buefy.notification.open({
+                    duration: 5000,
+                    message: `<span class="is-size-4">${errorMessage}</span>`,
+                    type: 'is-warning',
+                })
             }
         },
 
-        mounted(){
-            // setInterval(() => {
-                this.getFiles()
-            // }, 1000);
-        },
+        async getFiles() {
+            try {
+                this.isLoading = true
 
+                const response = await axios.get('/get_files');
+                const response_files = response.data.files;
 
-        methods: {
-            async sendViaBluetooth(){
-                try {
-                    const response = await axios.get('/receive_bluetooth');
-                    this.$buefy.notification.open({
-                        duration: 5000,
-                        message: `<span class="is-size-4">${response.data.message}</span>`,
-                        type: 'is-success',
-                    })
-                    
-                } catch (error) {
-                    const errorMessage = error.response.data.message || error.message
-                    this.$buefy.notification.open({
-                        duration: 5000,
-                        message: `<span class="is-size-4">${errorMessage}</span>`,
-                        type: 'is-warning',
-                    })
+                const is_process = response_files.length > 0;
+                if(is_process){
+                    window.location.href = "/uploaded_files"
                 }
-            },
 
-            async getFiles() {
-                try {
-                    this.isLoading = true
-
-                    const response = await axios.get('/get_files');
-                    const response_files = response.data.files;
-
-                    const is_process = response_files.length > 0;
-                    if(is_process){
-                        window.location.href = "/uploaded_files"
-                    }
-
-                    if(response.data.redirect){
-                        window.location.href = response.data.redirect
-                    }
-                }catch(error){
-                    const errorMessage = error.response.data.message || error.message;
-                    this.$buefy.notification.open({
-                        duration: 5000,
-                        message: `<span class="is-size-4">${errorMessage}</span>`,
-                        type: 'is-warning',
-                    })
-                }finally {
-                    this.isLoading = false
+                if(response.data.redirect){
+                    window.location.href = response.data.redirect
                 }
+            }catch(error){
+                const errorMessage = error.response.data.message || error.message;
+                this.$buefy.notification.open({
+                    duration: 5000,
+                    message: `<span class="is-size-4">${errorMessage}</span>`,
+                    type: 'is-warning',
+                })
+            }finally {
+                this.isLoading = false
             }
         }
     }
+}
 </script>
 
 <style>

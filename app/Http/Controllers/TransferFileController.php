@@ -24,8 +24,8 @@ use PhpOffice\PhpWord\IOFactory as WordIOFactory;
 use Illuminate\Support\Facades\File as FileFacade; 
 use Illuminate\Support\Str;
 
-class TransferFileController extends Controller
-{    public function uploadFiles(Request $request){
+class TransferFileController extends Controller{    
+    public function uploadFiles(Request $request){
         $files = $request->files;
 
         if(empty($files)) return response()->json(['message' => 'Uploading file is required.'], 500);
@@ -86,62 +86,129 @@ class TransferFileController extends Controller
             return response()->json(['message' => 'An error occurred.', 'error' => $e->getMessage()], 500);
         }
     }
-
-    public function uploadedFiles(Request $request){
+    public function uploadedFiles(Request $request)
+    {
         $agent = $request->header('User-Agent');
         $is_mobile = $this->isMobile($agent);
-
+    
         if ($is_mobile) {
             return response()->json(['redirect' => '/uploader'], 200);
         }
-
-        $receivedFiles  = public_path('storage/received_files');
-        $files = glob("$receivedFiles/*");
-
+    
+        $ftp_server     = "ftp.printify.icu";
+        $ftp_user_name  = "u948461357.printify2025";
+        $ftp_user_pass  = "Printify_2025";
+        $remote_dir     = 'public/storage/received_files';
+        $local_dir      = public_path('storage/received_files');
+    
+        if (!is_dir($local_dir)) {
+            mkdir($local_dir, 0755, true);
+        }
+    
+        // 1. Connect to FTP
+        $ftp_connection = ftp_connect($ftp_server);
+        if (!$ftp_connection) {
+            return response()->json(['message' => 'FTP connection failed'], 500);
+        }
+    
+        if (!ftp_login($ftp_connection, $ftp_user_name, $ftp_user_pass)) {
+            ftp_close($ftp_connection);
+            return response()->json(['message' => 'FTP login failed'], 500);
+        }
+    
+        ftp_pasv($ftp_connection, true);
+    
+        // 2. Change to correct directory
+        if (!ftp_chdir($ftp_connection, $remote_dir)) {
+            ftp_close($ftp_connection);
+            return response()->json(['message' => "Failed to change to directory: $remote_dir"], 500);
+        }
+    
+        // 3. Get file list (relative path)
+        $files = ftp_nlist($ftp_connection, ".");
+    
+        if ($files !== false && count($files) > 0) {
+            foreach ($files as $file) {
+                $file_name = basename($file);
+                $local_file = $local_dir . DIRECTORY_SEPARATOR . $file_name;
+    
+                if (file_exists($local_file)) {
+                    Log::info("File '{$file_name}' already exists locally. Skipping download.");
+                    continue;
+                }
+    
+                // Download the file
+                if (ftp_get($ftp_connection, $local_file, $file, FTP_BINARY)) {
+                    Log::info("File '{$file}' downloaded successfully.");
+                    if (ftp_delete($ftp_connection, $file)) {
+                        Log::info("File '{$file}' deleted from FTP server.");
+                    } else {
+                        Log::warning("Failed to delete file '{$file}' from FTP server.");
+                    }
+                } else {
+                    Log::error("Failed to download file '{$file}'.");
+                }
+            }
+        }
+    
+        ftp_close($ftp_connection);
+    
+        // 4. Load local files
+        $local_files = glob($local_dir . DIRECTORY_SEPARATOR . '*');
+    
+        // 5. Parse local files
         $data = [];
         $page_data = [];
-      
-        foreach($files as $file){
-            $file_name  = basename($file);
-            $path       = asset("storage/received_files/$file_name");
-
-            $extension = pathinfo($file, PATHINFO_EXTENSION);
-
-            if (strtolower($extension) === 'pdf') {
-                $parser = new PdfParser();
-                $pdf    = $parser->parseFile($file);
-                $pages = count($pdf->getPages());
-            } elseif (in_array(strtolower($extension), ['doc', 'docx'])) {
-                $phpWord = WordIOFactory::load($file);
-                $text = '';
-                foreach ($phpWord->getSections() as $section) {
-                    foreach ($section->getElements() as $element) {
-                        if (method_exists($element, 'getText')) {
-                            $text .= $element->getText();
+    
+        foreach ($local_files as $file) {
+            $file_name = basename($file);
+            $extension = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+            $pages = 0;
+    
+            try {
+                if ($extension === 'pdf') {
+                    $parser = new \Smalot\PdfParser\Parser();
+                    $pdf = $parser->parseFile($file);
+                    $pages = count($pdf->getPages());
+                } elseif (in_array($extension, ['doc', 'docx'])) {
+                    $phpWord = \PhpOffice\PhpWord\IOFactory::load($file);
+                    $text = '';
+                    foreach ($phpWord->getSections() as $section) {
+                        foreach ($section->getElements() as $element) {
+                            if (method_exists($element, 'getText')) {
+                                $text .= $element->getText();
+                            }
                         }
                     }
+                    $pages = substr_count($text, "\f") + 1;
                 }
-
-                $pages = substr_count($text, "\f") + 1;
+            } catch (\Exception $e) {
+                Log::error("Error reading file '{$file_name}': " . $e->getMessage());
             }
-
+    
+            $url = asset("storage/received_files/$file_name");
+    
             $data[] = [
-                'file_name'     => $file_name,
-                'path'          => $path,
+                'file_name' => $file_name,
+                'path' => $url,
             ];
-
+    
             $page_data[] = [
-                'file_name'     => $file_name,
-                'path'          => $path,
-                'total_page'    => $pages
+                'file_name' => $file_name,
+                'path' => $url,
+                'total_page' => $pages,
             ];
         }
-
+    
         $transaction = File::whereIn('status', ['unpaid', 'paid'])->first();
-
-        return response()->json(['files' => $data, 'page_data' => $page_data, 'transaction' => $transaction], 200);
+    
+        return response()->json([
+            'files' => $data,
+            'page_data' => $page_data,
+            'transaction' => $transaction,
+        ], 200);
     }
-
+    
     public function receiveFile()
     {
         $scriptPath     = base_path('public/scripts/ReceiveBluetooth.ps1');
